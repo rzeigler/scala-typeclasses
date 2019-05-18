@@ -19,10 +19,6 @@
   <body>
     <textarea id="source">
 
-```tut:invisible
-
-```
-
 class: center, middle
 
 # Typeclasses in Scala
@@ -31,19 +27,164 @@ Ryan Zeigler
 
 
 ---
-# Inline Scala examples
+
+# What Is A Typeclass?
+
+Term typeclass comes from Haskell
+
+Ad-hoc polymorphism
+
+A contract for a type just like an interface
+
+--
+
+Lets see an example
+
+--
 
 ```tut:silent
-case class Person(name: String, age: Int)
+final case class Rational(p: Int, q: Int) {
+  def compareTo(o: Rational): Int = p * o.q - o.p * q
+}
+
+object Rational {
+  implicit val rationalOrdering: Ordering[Rational] = new Ordering[Rational] {
+    def compare(a: Rational, b: Rational): Int = a.p * b.q - b.p * a.q
+  }
+}
 ```
 
-```tut:book
-val john = Person("John", 23)
+---
 
-john.age
+# Encoding in Scala
 
-john.copy(age = 30)
+Typeclasses are traits
+
+Methods on the trait general take arguments of the instance type
+
+Instances for types are implicits
+
+Requiring an instance means taking an implicit parameter
+
+```scala
+class List[A] {
+  // ...
+  def sorted(implicit ev: Ordering[A]): List[A]
+  // ...
+}
 ```
+
+Given an `Ordering[A]` I can produce a sorted `List[A]`
+
+---
+
+# Why Would We Want This?
+
+The simplest typeclass uses are easily encodable with interfaces
+
+`Ordering[A]` is more or less the same as `implements Comparable[A]`
+
+With the typeclass approach we can define operations that rely on typeclass at the point of consumption. 
+
+Java has Collections which is a bag of static methods that handles sorting everything
+
+???
+IMO this is easier to think about
+
+---
+
+# Why Would We Want This - Interlude?
+
+A Semigroup is something with an append/addition operation
+
+Some common examples of semigroups:
+  Int, Double, String, List
+
+```tut:silent
+trait Semigroup[A] {
+  def append(a1: A, a2: A): A
+}
+```
+
+A Monoid is a semigroup with the addition of an identity element.
+
+Think `0` for Int, `""` for String
+
+```tut:silent
+trait Monoid[A] extends Semigroup[A] {
+  def empty: A
+}
+```
+
+---
+
+# Why Would We Want This - Derivable Instances
+
+```tut:silent
+implicit val intMonoid: Monoid[Int] = new Monoid[Int] {
+  def append(a1: Int, a2: Int): Int = a1 + a2
+  def empty: Int = 0
+}
+
+implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] = 
+  new Monoid[Option[A]] {
+    def append(a1: Option[A], a2: Option[A]): Option[A] = 
+      a1.flatMap(a => a2.map(b => implicitly[Semigroup[A]].append(a, b)))
+        .orElse(a1)
+        .orElse(a2)
+    def empty: Option[A] = None
+  }
+```
+
+---
+
+# Why Would We Want This
+
+--
+
+* If we have a `Semigroup[A]` we automatically have a `Monoid[Option[A]]`
+
+--
+
+* This kind of dependent relationship is hard to express with interfaces 
+  but is common with the decoupling provided by typeclasses
+
+--
+
+* `class Option[A] extends Monoid[Option[A]] when A <: Semigroup` ???
+
+???
+
+Semigroups but not monoids (NEL, NEV)...
+
+---
+
+# Why Would We Want This
+
+* We can mix together typeclass constraints to build powerful abstractions
+
+* Ever wanted to quickly sum the numbers in some collection
+
+* How about combine anything that is combinable in some collection
+
+--
+
+```tut:silent
+def sum[A: Monoid](as: List[A]): A = 
+  as.foldLeft(implicitly[Monoid[A]].empty)(implicitly[Monoid[A]].append)
+```
+
+```tut
+sum(List(1, 2, 3))
+
+sum(List(Some(1), Some(2), None, Some(3)))
+```
+
+---
+
+# Cats
+
+
 
  </textarea>
     <script src="remark-latest.min.js">
