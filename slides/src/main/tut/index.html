@@ -142,6 +142,10 @@ implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] =
 
 --
 
+* Automatic derivation; Instances based on typeclass instances of other types
+
+--
+
 * If we have a `Semigroup[A]` we automatically have a `Monoid[Option[A]]`
 
 --
@@ -165,24 +169,37 @@ Semigroups but not monoids (NEL, NEV)...
 
 * Ever wanted to quickly sum the numbers in some collection
 
-* How about combine anything that is combinable in some collection
-
---
 
 ```tut:silent
 def sum[A: Monoid](as: List[A]): A = 
   as.foldLeft(implicitly[Monoid[A]].empty)(implicitly[Monoid[A]].append)
 ```
-
 ```tut
 sum(List(1, 2, 3))
+```
+--
 
+* Oh, the requirements changed, now we have to some records that may or may not have numbers...
+
+--
+
+```tut
 sum(List(Some(1), Some(2), None, Some(3)))
 ```
 
 ---
 
-# Cats
+# Typeclass Providers
+
+* There are several projects/ecosystems that provide typeclasses
+--
+* [scalaz](https://github.com/scalaz/scalaz) - the original; monolithic; in development version 8 is experimenting with a new encoding
+--
+* [cats](https://github.com/typelevel/cats) - newer; ecosystem of projects roughly equivalent to scalaz
+--
+* [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations
+--
+* All of these provide Semigroup and Monoid before you roll your own
 
 
 

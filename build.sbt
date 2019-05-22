@@ -14,7 +14,8 @@ val settings = Seq(
       ),
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % "1.6.0",
-      "org.typelevel" %% "cats-effect" % "1.3.0"
+      "org.typelevel" %% "cats-effect" % "1.3.0",
+      "org.typelevel" %% "spire" % "0.16.1"
     )
 )
 
