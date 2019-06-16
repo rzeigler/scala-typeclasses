@@ -155,7 +155,7 @@ implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] =
 
 --
 
-* `class Option[A] extends Monoid[Option[A]] when A <: Semigroup` ???
+* `class Option[A] extends Monoid[Option[A]] when A <: Semigroup` ?!?!
 
 ???
 
@@ -180,7 +180,7 @@ res0: Int = 6
 ```
 --
 
-* Oh, the requirements changed, now we have to some records that may or may not have numbers...
+* Oh, the requirements changed, now we have to some records that may or may not have numbers and those should be treated as 0...
 
 --
 
@@ -203,7 +203,102 @@ res1: Option[Int] = Some(6)
 --
 * All of these provide Semigroup and Monoid before you roll your own
 
+---
+# Common Typeclass and Their Uses
 
+To access all of these implicits you can import the following.
+
+
+```scala
+import cats._
+import cats.data._
+import cats.implicits._
+```
+
+Typeclasses are expected to have laws to which they conform. 
+These laws are what allow composition of arbitrary types to work and usually do something sensible (although not always useful)
+
+---
+
+# Functor
+
+... Things that have map
+
+```scala
+def add1[F[_]: Functor](fa: F[Int]): F[Int] = fa.map(_ + 1)
+```
+
+```scala
+scala> add1(42.some)
+res0: Option[Int] = Some(43)
+
+scala> add1(List(42, 43, 44))
+res1: List[Int] = List(43, 44, 45)
+
+scala> add1(42.asRight[String])
+res2: Either[String,Int] = Right(43)
+```
+
+???
+Make sure to discuss syntax
+
+---
+Laws
+
+* Mapping with identity must be the same as applying identity
+
+```scala
+def id[F[_]: Functor, A](fa: F[A]): Unit = 
+  assert(fa.map(identity) == identity(fa))
+```
+
+* Mapping with the composition of 2 functions is the same as mapping one then the other
+
+```scala
+def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit = 
+  assert(fa.map(f.andThen(g)) == fa.map(f).map(g))
+```
+
+---
+
+# Unusual Functors
+
+* Functions!
+
+```scala
+scala> val strLen = (s: String) => s.length
+strLen: String => Int = $$Lambda$19345/724699157@49c34fad
+
+scala> val strLenX4 = strLen.fmap(_ * 4)
+strLenX4: String => Int = scala.Function1$$Lambda$4310/750734486@48ac4437
+
+scala> strLenX4("abc")
+res3: Int = 12
+```
+
+* Parsers!
+
+```scala
+import io.circe._
+import io.circe.parser.decode
+```
+
+```scala
+scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@2698e69d
+
+scala> decode[String]("24")(reverseString)
+res4: Either[io.circe.Error,String] = Right(42)
+```
+
+???
+
+What is the meaning of these fun tricks
+Functions... the 'value' contained is the rsult of application
+So mapping a f with g is the same as composing f with g
+
+Parsers... you can always apply a function to the result of a parse if it was successful
+Its like mapping of an either produced by the parse
 
  </textarea>
     <script src="remark-latest.min.js">

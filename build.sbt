@@ -1,3 +1,10 @@
+val circeVersion = "0.10.0"
+val circe = Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
+
 val settings = Seq(
     scalaVersion := "2.12.8",
     scalacOptions ++= Seq(
@@ -10,14 +17,17 @@ val settings = Seq(
         "-Yno-adapted-args",
         "-Ywarn-numeric-widen",
         "-Ywarn-value-discard",
+        "-Ypartial-unification",
         "-Xfuture"
       ),
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-core" % "1.6.0",
       "org.typelevel" %% "cats-effect" % "1.3.0",
-      "org.typelevel" %% "spire" % "0.16.1"
-    )
+      "org.typelevel" %% "spire" % "0.16.1",
+      compilerPlugin("org.typelevel" %% "kind-projector" % "0.10.1")
+    ) ++ circe
 )
+
 
 resolvers += Resolver.sonatypeRepo("releases")
 

@@ -155,7 +155,7 @@ implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] =
 
 --
 
-* `class Option[A] extends Monoid[Option[A]] when A <: Semigroup` ???
+* `class Option[A] extends Monoid[Option[A]] when A <: Semigroup` ?!?!
 
 ???
 
@@ -179,7 +179,7 @@ sum(List(1, 2, 3))
 ```
 --
 
-* Oh, the requirements changed, now we have to some records that may or may not have numbers...
+* Oh, the requirements changed, now we have to some records that may or may not have numbers and those should be treated as 0...
 
 --
 
@@ -201,7 +201,89 @@ sum(List(Some(1), Some(2), None, Some(3)))
 --
 * All of these provide Semigroup and Monoid before you roll your own
 
+---
+# Common Typeclass and Their Uses
 
+To access all of these implicits you can import the following.
+
+
+```tut:reset:silent
+import cats._
+import cats.data._
+import cats.implicits._
+```
+
+Typeclasses are expected to have laws to which they conform. 
+These laws are what allow composition of arbitrary types to work and usually do something sensible (although not always useful)
+
+---
+
+# Functor
+
+... Things that have map
+
+```tut:silent
+def add1[F[_]: Functor](fa: F[Int]): F[Int] = fa.map(_ + 1)
+```
+
+```tut
+add1(42.some)
+add1(List(42, 43, 44))
+add1(42.asRight[String])
+```
+
+???
+Make sure to discuss syntax
+
+---
+Laws
+
+* Mapping with identity must be the same as applying identity
+
+```tut:silent
+def id[F[_]: Functor, A](fa: F[A]): Unit = 
+  assert(fa.map(identity) == identity(fa))
+```
+
+* Mapping with the composition of 2 functions is the same as mapping one then the other
+
+```tut:silent
+def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit = 
+  assert(fa.map(f.andThen(g)) == fa.map(f).map(g))
+```
+
+---
+
+# Unusual Functors
+
+* Functions!
+
+```tut
+val strLen = (s: String) => s.length
+val strLenX4 = strLen.fmap(_ * 4)
+strLenX4("abc")
+```
+
+* Parsers!
+
+```tut:silent
+import io.circe._
+import io.circe.parser.decode
+```
+
+```tut
+implicit val reverseString = Decoder[Int].map(_.toString.reverse)
+decode[String]("24")(reverseString)
+```
+
+???
+
+What is the meaning of these fun tricks
+Functions... the 'value' contained is the rsult of application
+So mapping a f with g is the same as composing f with g
+
+Parsers... you can always apply a function to the result of a parse if it was successful
+Its like mapping of an either produced by the parse
 
  </textarea>
     <script src="remark-latest.min.js">
