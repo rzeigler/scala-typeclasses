@@ -30,11 +30,17 @@ Ryan Zeigler
 
 # What Is A Typeclass?
 
-Term typeclass comes from Haskell
+--
 
-Ad-hoc polymorphism
+* Term typeclass comes from Haskell
 
-A contract for a type just like an interface
+--
+
+* Ad-hoc polymorphism
+
+-- 
+
+*A contract for a type just like an interface
 
 --
 
@@ -194,13 +200,21 @@ res1: Option[Int] = Some(6)
 # Typeclass Providers
 
 * There are several projects/ecosystems that provide typeclasses
+
 --
+
 * [scalaz](https://github.com/scalaz/scalaz) - the original; monolithic; in development version 8 is experimenting with a new encoding
+
 --
+
 * [cats](https://github.com/typelevel/cats) - newer; ecosystem of projects roughly equivalent to scalaz
+
 --
+
 * [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations
+
 --
+
 * All of these provide Semigroup and Monoid before you roll your own
 
 ---
@@ -267,10 +281,10 @@ def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit =
 
 ```scala
 scala> val strLen = (s: String) => s.length
-strLen: String => Int = $$Lambda$19345/724699157@49c34fad
+strLen: String => Int = $$Lambda$16836/1943366730@548e1eab
 
 scala> val strLenX4 = strLen.fmap(_ * 4)
-strLenX4: String => Int = scala.Function1$$Lambda$4310/750734486@48ac4437
+strLenX4: String => Int = scala.Function1$$Lambda$4366/1017935695@4822f18d
 
 scala> strLenX4("abc")
 res3: Int = 12
@@ -285,7 +299,7 @@ import io.circe.parser.decode
 
 ```scala
 scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
-reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@2698e69d
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@1078651b
 
 scala> decode[String]("24")(reverseString)
 res4: Either[io.circe.Error,String] = Right(42)
@@ -299,6 +313,156 @@ So mapping a f with g is the same as composing f with g
 
 Parsers... you can always apply a function to the result of a parse if it was successful
 Its like mapping of an either produced by the parse
+
+---
+
+# Monad
+
+* A miniature effectful program.
+
+--
+
+* All monads are functors with an added point/pure and flatMap function
+
+--
+* The flatMap means we can use it with for comprehensions
+```scala
+// Named M to not conflict with the actual monad from cats in scope
+trait M {
+  def point[F[_], A](a: A): F[A]
+  def flatMap[F[_], A, B](fa: F[A])(f: A => F[B]): F[B]
+}
+```
+
+---
+
+# Common Examples
+
+* Options are monads
+
+--
+
+* Lists are monads
+
+--
+
+* Futures are monads
+
+```scala
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+def random: Future[Double] = Future { scala.util.Random.nextDouble }
+```
+
+--
+
+* If you can use it in a `for { }` block it is probably a monad
+
+---
+
+# Abstracting with Typeclasses
+
+* We will compute the maximum of values
+
+--
+
+* The numeric typeclass which abstracts over number types will help us
+
+--
+
+* The precise meaning depends on the Monad itself
+
+--
+
+```scala
+def maxM[M[_], N](ma: M[N], mb: M[N])
+                 (implicit M: Monad[M], N: Numeric[N]): M[N] = 
+  for {
+    a <- ma
+    b <- mb
+  } yield N.max(a, b)
+```
+
+---
+
+# Absraction in Action
+
+
+```scala
+scala> maxM[Option, Int](5.some, 7.some)
+res6: Option[Int] = Some(7)
+
+scala> maxM[Option, Int](5.some, none)
+res7: Option[Int] = None
+
+scala> // The maximum of each in the cross product of left and right
+     | maxM[List, Byte](List(1, -7), List(-5, 9))
+res9: List[Byte] = List(1, 9, -5, 9)
+
+scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
+res10: Double = 0.14521510026364326
+
+scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
+res11: Double = 0.17108875469821305
+
+scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
+res12: Double = 0.7056136484791664
+```
+
+---
+
+# Traverse
+
+--
+
+* Related to Traversable from the scala stdlib
+
+--
+
+* A more powerful form of Functor
+
+--
+
+* Effects can also be flipped inside out during the mapping
+
+--
+
+* `F[G[A]] ~> G[F[A]]`
+
+---
+
+# Examples
+```scala
+import cats._, cats.implicits._
+
+def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
+```
+
+--
+
+```scala
+scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+res13: List[Int] = List(2, 21, 27, 2)
+
+scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+res14: List[Int] = List(1, 21, 23, 19)
+```
+
+```scala
+scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+res15: Option[Int] = Some(9)
+
+scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+res16: Option[Int] = Some(2)
+
+scala> Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
+res17: Option[Int] = None
+```
+
+???
+Discuss that we are flipping the M inside out and then dereferencing which strips away the outer Future
+Note that I am using the cats helpers
 
  </textarea>
     <script src="remark-latest.min.js">

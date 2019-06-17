@@ -30,11 +30,17 @@ Ryan Zeigler
 
 # What Is A Typeclass?
 
-Term typeclass comes from Haskell
+--
 
-Ad-hoc polymorphism
+* Term typeclass comes from Haskell
 
-A contract for a type just like an interface
+--
+
+* Ad-hoc polymorphism
+
+-- 
+
+*A contract for a type just like an interface
 
 --
 
@@ -192,13 +198,21 @@ sum(List(Some(1), Some(2), None, Some(3)))
 # Typeclass Providers
 
 * There are several projects/ecosystems that provide typeclasses
+
 --
+
 * [scalaz](https://github.com/scalaz/scalaz) - the original; monolithic; in development version 8 is experimenting with a new encoding
+
 --
+
 * [cats](https://github.com/typelevel/cats) - newer; ecosystem of projects roughly equivalent to scalaz
+
 --
+
 * [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations
+
 --
+
 * All of these provide Semigroup and Monoid before you roll your own
 
 ---
@@ -284,6 +298,140 @@ So mapping a f with g is the same as composing f with g
 
 Parsers... you can always apply a function to the result of a parse if it was successful
 Its like mapping of an either produced by the parse
+
+---
+
+# Monad
+
+* A miniature effectful program.
+
+--
+
+* All monads are functors with an added point/pure and flatMap function
+
+--
+* The flatMap means we can use it with for comprehensions
+```tut:silent
+// Named M to not conflict with the actual monad from cats in scope
+trait M {
+  def point[F[_], A](a: A): F[A]
+  def flatMap[F[_], A, B](fa: F[A])(f: A => F[B]): F[B]
+}
+```
+
+---
+
+# Common Examples
+
+* Options are monads
+
+--
+
+* Lists are monads
+
+--
+
+* Futures are monads
+
+```tut:silent
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+def random: Future[Double] = Future { scala.util.Random.nextDouble }
+```
+
+--
+
+* If you can use it in a `for { }` block it is probably a monad
+
+---
+
+# Abstracting with Typeclasses
+
+* We will compute the maximum of values
+
+--
+
+* The numeric typeclass which abstracts over number types will help us
+
+--
+
+* The precise meaning depends on the Monad itself
+
+--
+
+```tut:silent
+def maxM[M[_], N](ma: M[N], mb: M[N])
+                 (implicit M: Monad[M], N: Numeric[N]): M[N] = 
+  for {
+    a <- ma
+    b <- mb
+  } yield N.max(a, b)
+```
+
+---
+
+# Absraction in Action
+
+
+```tut
+maxM[Option, Int](5.some, 7.some)
+maxM[Option, Int](5.some, none)
+// The maximum of each in the cross product of left and right
+maxM[List, Byte](List(1, -7), List(-5, 9))
+Await.result(maxM[Future, Double](random, random), Duration.Inf)
+Await.result(maxM[Future, Double](random, random), Duration.Inf)
+Await.result(maxM[Future, Double](random, random), Duration.Inf)
+```
+
+---
+
+# Traverse
+
+--
+
+* Related to Traversable from the scala stdlib
+
+--
+
+* A more powerful form of Functor
+
+--
+
+* Effects can also be flipped inside out during the mapping
+
+--
+
+* `F[G[A]] ~> G[F[A]]`
+
+---
+
+# Examples
+```tut:silent
+import cats._, cats.implicits._
+
+def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
+```
+
+--
+
+```tut
+Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+
+Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+```
+
+```tut
+Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+
+Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+
+Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
+```
+
+???
+Discuss that we are flipping the M inside out and then dereferencing which strips away the outer Future
+Note that I am using the cats helpers
 
  </textarea>
     <script src="remark-latest.min.js">
