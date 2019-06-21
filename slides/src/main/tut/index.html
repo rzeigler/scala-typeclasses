@@ -32,28 +32,32 @@ Ryan Zeigler
 
 --
 
-* Term typeclass comes from Haskell
+* typeclass comes from Haskell
 
 --
 
-* Ad-hoc polymorphism
-
--- 
-
-*A contract for a type just like an interface
+* ad-hoc polymorphism
 
 --
 
-Lets see an example
+* a contract for a type just like an interface
+
+--
+
+* lets see an example
 
 --
 
 ```tut:silent
-final case class Rational(p: Int, q: Int) {
+// With interface
+
+final case class Rational(p: Int, q: Int) extends Comparable[Rational] {
   def compareTo(o: Rational): Int = p * o.q - o.p * q
 }
 
 object Rational {
+
+  // Equivalent typeclass
   implicit val rationalOrdering: Ordering[Rational] = new Ordering[Rational] {
     def compare(a: Rational, b: Rational): Int = a.p * b.q - b.p * a.q
   }
@@ -64,13 +68,23 @@ object Rational {
 
 # Encoding in Scala
 
-Typeclasses are traits
+--
 
-Methods on the trait general take arguments of the instance type
+* Typeclasses are traits
 
-Instances for types are implicits
+--
 
-Requiring an instance means taking an implicit parameter
+* Methods on the trait usually take a first arguments of the instance type
+
+--
+
+* Instances for types are implicits
+
+--
+
+* Requiring an instance means taking an implicit parameter
+
+--
 
 ```scala
 class List[A] {
@@ -80,19 +94,38 @@ class List[A] {
 }
 ```
 
-Given an `Ordering[A]` I can produce a sorted `List[A]`
+???
+
+Read this as Given an `Ordering[A]` I can produce a sorted `List[A]`
 
 ---
 
 # Why Would We Want This?
 
-The simplest typeclass uses are easily encodable with interfaces
 
-`Ordering[A]` is more or less the same as `implements Comparable[A]`
+--
 
-With the typeclass approach we can define operations that rely on typeclass at the point of consumption. 
+* The simplest typeclass uses are easily encodable with interfaces
 
-Java has Collections which is a bag of static methods that handles sorting everything
+--
+
+* `Ordering[A]` is more or less the same as `implements Comparable[A]`
+
+--
+
+* With the typeclass approach we can define operations that rely on typeclass at the point of consumption. 
+
+--
+
+* This allow for 'conditionally' defined methods
+
+???
+
+See the ordering example for sort above
+
+--
+
+* In Java, Collections just has a bunch of random methods
 
 ???
 IMO this is easier to think about
@@ -101,10 +134,15 @@ IMO this is easier to think about
 
 # Why Would We Want This - Interlude?
 
-A Semigroup is something with an append/addition operation
+--
 
-Some common examples of semigroups:
-  Int, Double, String, List
+* A Semigroup is something with an append/addition operation
+
+--
+
+* Some common examples of semigroups: Int, Double, String, List
+
+--
 
 ```tut:silent
 trait Semigroup[A] {
@@ -112,9 +150,15 @@ trait Semigroup[A] {
 }
 ```
 
-A Monoid is a semigroup with the addition of an identity element.
+--
+
+* A Monoid is a semigroup with the addition of an identity element.
+
+???
 
 Think `0` for Int, `""` for String
+
+--
 
 ```tut:silent
 trait Monoid[A] extends Semigroup[A] {
@@ -135,12 +179,18 @@ implicit val intMonoid: Monoid[Int] = new Monoid[Int] {
 implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] = 
   new Monoid[Option[A]] {
     def append(a1: Option[A], a2: Option[A]): Option[A] = 
+      // a1 + a2
       a1.flatMap(a => a2.map(b => implicitly[Semigroup[A]].append(a, b)))
+        // a2 is 0
         .orElse(a1)
+        // a1 is 0
         .orElse(a2)
     def empty: Option[A] = None
   }
 ```
+
+???
+Stop to make sure everyone understands what this is doing?
 
 ---
 
@@ -153,6 +203,10 @@ implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] =
 --
 
 * If we have a `Semigroup[A]` we automatically have a `Monoid[Option[A]]`
+
+--
+
+* We can use None as a standin for the 0
 
 --
 
@@ -171,10 +225,15 @@ Semigroups but not monoids (NEL, NEV)...
 
 # Why Would We Want This
 
+--
+
 * We can mix together typeclass constraints to build powerful abstractions
+
+--
 
 * Ever wanted to quickly sum the numbers in some collection
 
+--
 
 ```tut:silent
 def sum[A: Monoid](as: List[A]): A = 
@@ -189,6 +248,10 @@ sum(List(1, 2, 3))
 
 --
 
+* We don't even have to change any code at the call site unless we provided type annotations for some reason
+
+--
+
 ```tut
 sum(List(Some(1), Some(2), None, Some(3)))
 ```
@@ -196,6 +259,8 @@ sum(List(Some(1), Some(2), None, Some(3)))
 ---
 
 # Typeclass Providers
+
+--
 
 * There are several projects/ecosystems that provide typeclasses
 
@@ -209,17 +274,21 @@ sum(List(Some(1), Some(2), None, Some(3)))
 
 --
 
-* [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations
+* [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations; provides things similar to Ordering and Numeric
 
 --
+
+* Most Scala json libraries use typeclasses to control encoding/decoding
+
+???
 
 * All of these provide Semigroup and Monoid before you roll your own
 
 ---
+
 # Common Typeclass and Their Uses
 
-To access all of these implicits you can import the following.
-
+* To access all of these implicits you can import the following.
 
 ```tut:reset:silent
 import cats._
@@ -227,14 +296,21 @@ import cats.data._
 import cats.implicits._
 ```
 
-Typeclasses are expected to have laws to which they conform. 
-These laws are what allow composition of arbitrary types to work and usually do something sensible (although not always useful)
+--
+
+* Typeclasses are expected to have laws to which they conform. 
+
+--
+
+* These laws are what allow composition of arbitrary types to work and usually do something sensible (although not always useful)
 
 ---
 
 # Functor
 
-... Things that have map
+--
+
+ * things that have map
 
 ```tut:silent
 def add1[F[_]: Functor](fa: F[Int]): F[Int] = fa.map(_ + 1)
@@ -248,6 +324,7 @@ add1(42.asRight[String])
 
 ???
 Make sure to discuss syntax
+Also, make sure to talk about how extremely general so much of this is
 
 ---
 Laws
@@ -299,6 +376,8 @@ So mapping a f with g is the same as composing f with g
 Parsers... you can always apply a function to the result of a parse if it was successful
 Its like mapping of an either produced by the parse
 
+The point isn't that functors are 'containers' but just that they have a polymorphic parameter
+
 ---
 
 # Monad
@@ -343,6 +422,12 @@ def random: Future[Double] = Future { scala.util.Random.nextDouble }
 --
 
 * If you can use it in a `for { }` block it is probably a monad
+
+--
+
+* Some notable exceptions include:
+  * Set - map doesn't compose correctly
+  * String - doens't have a generic parameter
 
 ---
 
@@ -430,8 +515,75 @@ Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
 ```
 
 ???
+I'm using Future as an 'effect container' here. I would generally use something like IO, ZIO
+
 Discuss that we are flipping the M inside out and then dereferencing which strips away the outer Future
 Note that I am using the cats helpers
+
+# Why Is This Useful?
+
+--
+
+* Being able to switch betweeen 'container types' is cute, but seldom useful in practice (in ~10 years, I've found it useful once)
+
+--
+
+* Writing polymorphic code means that you know less about the types that are involved. 
+
+--
+
+* The less you know about the types, the fewer ways there are to write an implementation
+
+--
+
+* The fewer ways there are to write an implementation the harder it is to get it wrong
+
+--
+
+# Lets See an Example
+
+```tut:silent
+import cats._
+import cats.data._
+import cats.implicits._
+
+def max[F[_]: Reducible, A: Order](fa: F[A]): A = 
+  Reducible[F].reduceLeft(fa)((x, y) => if (Order[A].gt(x, y)) x else y)
+```
+
+---
+
+# Compared To
+
+```
+def max(list: List[Int]): Int = 
+  list.sort.head
+
+```
+
+--
+
+* head is not the max of a sorted list
+
+--
+
+* crashes on empty list
+
+---
+
+# Why Is This Useful - Pt. 2
+
+--
+
+* Typeclasses (and especially those from cats, scalaz, spire...) express well studied abstract transformations
+
+--
+
+* Using them can save on tremendous amounts of code
+
+--
+
+* Based on Rob Norris's talk https://www.youtube.com/watch?v=7xSfLPD6tiQ&t=1s
 
  </textarea>
     <script src="remark-latest.min.js">
