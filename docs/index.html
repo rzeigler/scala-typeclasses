@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Typeclasses in Scala</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif', 'Helvetica'; }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz', 'Gill Sans';
+        font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono', 'Consolas', 'Courier New'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Typeclasses in Scala
+
+Ryan Zeigler
+
+
+---
+
+# What Is A Typeclass?
+
+--
+
+* typeclass comes from Haskell
+
+--
+
+* ad-hoc polymorphism
+
+--
+
+* a contract for a type just like an interface
+
+--
+
+* lets see an example
+
+--
+
+```scala
+// With interface
+
+final case class Rational(p: Int, q: Int) extends Comparable[Rational] {
+  def compareTo(o: Rational): Int = p * o.q - o.p * q
+}
+
+object Rational {
+
+  // Equivalent typeclass
+  implicit val rationalOrdering: Ordering[Rational] = new Ordering[Rational] {
+    def compare(a: Rational, b: Rational): Int = a.p * b.q - b.p * a.q
+  }
+}
+```
+
+---
+
+# Encoding in Scala
+
+--
+
+* Typeclasses are traits
+
+--
+
+* Methods on the trait usually take a first arguments of the instance type
+
+--
+
+* Instances for types are implicits
+
+--
+
+* Requiring an instance means taking an implicit parameter
+
+--
+
+```scala
+class List[A] {
+  // ...
+  def sorted(implicit ev: Ordering[A]): List[A]
+  // ...
+}
+```
+
+???
+
+Read this as Given an `Ordering[A]` I can produce a sorted `List[A]`
+
+---
+
+# Why Would We Want This?
+
+
+--
+
+* The simplest typeclass uses are easily encodable with interfaces
+
+--
+
+* `Ordering[A]` is more or less the same as `implements Comparable[A]`
+
+--
+
+* With the typeclass approach we can define operations that rely on typeclass at the point of consumption. 
+
+--
+
+* This allow for 'conditionally' defined methods
+
+???
+
+See the ordering example for sort above
+
+--
+
+* In Java, Collections just has a bunch of random methods
+
+???
+IMO this is easier to think about
+
+---
+
+# Why Would We Want This - Interlude?
+
+--
+
+* A Semigroup is something with an append/addition operation
+
+--
+
+* Some common examples of semigroups: Int, Double, String, List
+
+--
+
+```scala
+trait Semigroup[A] {
+  def append(a1: A, a2: A): A
+}
+```
+
+--
+
+* A Monoid is a semigroup with the addition of an identity element.
+
+???
+
+Think `0` for Int, `""` for String
+
+--
+
+```scala
+trait Monoid[A] extends Semigroup[A] {
+  def empty: A
+}
+```
+
+---
+
+# Why Would We Want This - Derivable Instances
+
+```scala
+implicit val intMonoid: Monoid[Int] = new Monoid[Int] {
+  def append(a1: Int, a2: Int): Int = a1 + a2
+  def empty: Int = 0
+}
+
+implicit def optionMonoid[A: Semigroup]: Monoid[Option[A]] = 
+  new Monoid[Option[A]] {
+    def append(a1: Option[A], a2: Option[A]): Option[A] = 
+      // a1 + a2
+      a1.flatMap(a => a2.map(b => implicitly[Semigroup[A]].append(a, b)))
+        // a2 is 0
+        .orElse(a1)
+        // a1 is 0
+        .orElse(a2)
+    def empty: Option[A] = None
+  }
+```
+
+???
+Stop to make sure everyone understands what this is doing?
+
+---
+
+# Why Would We Want This
+
+--
+
+* Automatic derivation; Instances based on typeclass instances of other types
+
+--
+
+* If we have a `Semigroup[A]` we automatically have a `Monoid[Option[A]]`
+
+--
+
+* We can use None as a standin for the 0
+
+--
+
+* This kind of dependent relationship is hard to express with interfaces 
+  but is common with the decoupling provided by typeclasses
+
+--
+
+* `class Option[A] extends Monoid[Option[A]] when A <: Semigroup` ?!?!
+
+???
+
+Semigroups but not monoids (NEL, NEV)...
+
+---
+
+# Why Would We Want This
+
+--
+
+* We can mix together typeclass constraints to build powerful abstractions
+
+--
+
+* Ever wanted to quickly sum the numbers in some collection
+
+--
+
+```scala
+def sum[A: Monoid](as: List[A]): A = 
+  as.foldLeft(implicitly[Monoid[A]].empty)(implicitly[Monoid[A]].append)
+```
+```scala
+scala> sum(List(1, 2, 3))
+res2: Int = 6
+```
+--
+
+* Oh, the requirements changed, now we have to some records that may or may not have numbers and those should be treated as 0...
+
+--
+
+* We don't even have to change any code at the call site unless we provided type annotations for some reason
+
+--
+
+```scala
+scala> sum(List(Some(1), Some(2), None, Some(3)))
+res3: Option[Int] = Some(6)
+```
+
+---
+
+# Typeclass Providers
+
+--
+
+* There are several projects/ecosystems that provide typeclasses
+
+--
+
+* [scalaz](https://github.com/scalaz/scalaz) - the original; monolithic; in development version 8 is experimenting with a new encoding
+
+--
+
+* [cats](https://github.com/typelevel/cats) - newer; ecosystem of projects roughly equivalent to scalaz
+
+--
+
+* [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations; provides things similar to Ordering and Numeric
+
+--
+
+* Most Scala json libraries use typeclasses to control encoding/decoding
+
+???
+
+* All of these provide Semigroup and Monoid before you roll your own
+
+---
+
+# Common Typeclass and Their Uses
+
+* To access all of these implicits you can import the following.
+
+```scala
+import cats._
+import cats.data._
+import cats.implicits._
+```
+
+--
+
+* Typeclasses are expected to have laws to which they conform. 
+
+--
+
+* These laws are what allow composition of arbitrary types to work and usually do something sensible (although not always useful)
+
+---
+
+# Functor
+
+--
+
+ * things that have map
+
+```scala
+def add1[F[_]: Functor](fa: F[Int]): F[Int] = fa.map(_ + 1)
+```
+
+```scala
+scala> add1(42.some)
+res0: Option[Int] = Some(43)
+
+scala> add1(List(42, 43, 44))
+res1: List[Int] = List(43, 44, 45)
+
+scala> add1(42.asRight[String])
+res2: Either[String,Int] = Right(43)
+```
+
+???
+Make sure to discuss syntax
+Also, make sure to talk about how extremely general so much of this is
+
+---
+Laws
+
+* Mapping with identity must be the same as applying identity
+
+```scala
+def id[F[_]: Functor, A](fa: F[A]): Unit = 
+  assert(fa.map(identity) == identity(fa))
+```
+
+* Mapping with the composition of 2 functions is the same as mapping one then the other
+
+```scala
+def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit = 
+  assert(fa.map(f.andThen(g)) == fa.map(f).map(g))
+```
+
+---
+
+# Unusual Functors
+
+* Functions!
+
+```scala
+scala> val strLen = (s: String) => s.length
+strLen: String => Int = $$Lambda$26024/23826453@106cc5c7
+
+scala> val strLenX4 = strLen.fmap(_ * 4)
+strLenX4: String => Int = scala.Function1$$Lambda$24482/291482422@7c1f4a82
+
+scala> strLenX4("abc")
+res3: Int = 12
+```
+
+* Parsers!
+
+```scala
+import io.circe._
+import io.circe.parser.decode
+```
+
+```scala
+scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@336f4ca2
+
+scala> decode[String]("24")(reverseString)
+res4: Either[io.circe.Error,String] = Right(42)
+```
+
+???
+
+What is the meaning of these fun tricks
+Functions... the 'value' contained is the rsult of application
+So mapping a f with g is the same as composing f with g
+
+Parsers... you can always apply a function to the result of a parse if it was successful
+Its like mapping of an either produced by the parse
+
+The point isn't that functors are 'containers' but just that they have a polymorphic parameter
+
+---
+
+# Monad
+
+* A miniature effectful program.
+
+--
+
+* All monads are functors with an added point/pure and flatMap function
+
+--
+* The flatMap means we can use it with for comprehensions
+```scala
+// Named M to not conflict with the actual monad from cats in scope
+trait M {
+  def point[F[_], A](a: A): F[A]
+  def flatMap[F[_], A, B](fa: F[A])(f: A => F[B]): F[B]
+}
+```
+
+---
+
+# Common Examples
+
+* Options are monads
+
+--
+
+* Lists are monads
+
+--
+
+* Futures are monads
+
+```scala
+import scala.concurrent._
+import scala.concurrent.duration._
