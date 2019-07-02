@@ -40,7 +40,7 @@ Ryan Zeigler
 
 --
 
-* a contract for a type just like an interface
+* a contract for a type similar to an interface
 
 --
 
@@ -132,11 +132,39 @@ IMO this is easier to think about
 
 ---
 
+# Built-In Typeclasses
+
+--
+
+* There are lots of useful built-ins in scala.math
+
+--
+
+* Numeric - operations on numbers: comparison, math operations, comparisons, etc.
+
+--
+
+* Fractional - adds div
+
+--
+
+* Integral - adds quot and rem
+
+--
+
+* Equiv
+
+---
+
 # Why Would We Want This - Interlude?
 
 --
 
 * A Semigroup is something with an append/addition operation
+
+--
+
+* Numeric... but even more general
 
 --
 
@@ -220,6 +248,8 @@ Stop to make sure everyone understands what this is doing?
 ???
 
 Semigroups but not monoids (NEL, NEV)...
+
+Map, combine at the overlap point, but not a great way of specifying the zero
 
 ---
 
@@ -575,15 +605,11 @@ def max(list: List[Int]): Int =
 
 --
 
-* Typeclasses (and especially those from cats, scalaz, spire...) express well studied abstract transformations
+* Typeclasses (and especially those from cats, scalaz, spire...) express well studied abstractions and compose in well defined ways
 
 --
 
 * Using them can save on tremendous amounts of code
-
---
-
-* Based on Rob Norris's talk https://www.youtube.com/watch?v=7xSfLPD6tiQ&t=1s
 
  </textarea>
     <script src="remark-latest.min.js">

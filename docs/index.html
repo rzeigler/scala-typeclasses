@@ -132,11 +132,39 @@ IMO this is easier to think about
 
 ---
 
+# Built-In Typeclasses
+
+--
+
+* There are lots of useful built-ins in scala.math
+
+--
+
+* Numeric - operations on numbers: comparison, math operations, comparisons, etc.
+
+--
+
+* Fractional - adds div
+
+--
+
+* Integral - adds quot and rem
+
+--
+
+* Equiv
+
+---
+
 # Why Would We Want This - Interlude?
 
 --
 
 * A Semigroup is something with an append/addition operation
+
+--
+
+* Numeric... but even more general
 
 --
 
@@ -220,6 +248,8 @@ Stop to make sure everyone understands what this is doing?
 ???
 
 Semigroups but not monoids (NEL, NEV)...
+
+Map, combine at the overlap point, but not a great way of specifying the zero
 
 ---
 
@@ -358,10 +388,10 @@ def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit =
 
 ```scala
 scala> val strLen = (s: String) => s.length
-strLen: String => Int = $$Lambda$26024/23826453@106cc5c7
+strLen: String => Int = $$Lambda$4325/1378203294@5e477e9
 
 scala> val strLenX4 = strLen.fmap(_ * 4)
-strLenX4: String => Int = scala.Function1$$Lambda$24482/291482422@7c1f4a82
+strLenX4: String => Int = scala.Function1$$Lambda$4330/51215527@2a3f42e2
 
 scala> strLenX4("abc")
 res3: Int = 12
@@ -376,7 +406,7 @@ import io.circe.parser.decode
 
 ```scala
 scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
-reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@336f4ca2
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@8aee9ee
 
 scala> decode[String]("24")(reverseString)
 res4: Either[io.circe.Error,String] = Right(42)
@@ -430,3 +460,193 @@ trait M {
 ```scala
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+def random: Future[Double] = Future { scala.util.Random.nextDouble }
+```
+
+--
+
+* If you can use it in a `for { }` block it is probably a monad
+
+--
+
+* Some notable exceptions include:
+  * Set - map doesn't compose correctly
+  * String - doens't have a generic parameter
+
+---
+
+# Abstracting with Typeclasses
+
+* We will compute the maximum of values
+
+--
+
+* The numeric typeclass which abstracts over number types will help us
+
+--
+
+* The precise meaning depends on the Monad itself
+
+--
+
+```scala
+def maxM[M[_], N](ma: M[N], mb: M[N])
+                 (implicit M: Monad[M], N: Numeric[N]): M[N] = 
+  for {
+    a <- ma
+    b <- mb
+  } yield N.max(a, b)
+```
+
+---
+
+# Absraction in Action
+
+
+```scala
+scala> maxM[Option, Int](5.some, 7.some)
+res6: Option[Int] = Some(7)
+
+scala> maxM[Option, Int](5.some, none)
+res7: Option[Int] = None
+
+scala> // The maximum of each in the cross product of left and right
+     | maxM[List, Byte](List(1, -7), List(-5, 9))
+res9: List[Byte] = List(1, 9, -5, 9)
+
+scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
+res10: Double = 0.8490200037434813
+
+scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
+res11: Double = 0.3538943224568719
+
+scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
+res12: Double = 0.759531191170261
+```
+
+---
+
+# Traverse
+
+--
+
+* Related to Traversable from the scala stdlib
+
+--
+
+* A more powerful form of Functor
+
+--
+
+* Effects can also be flipped inside out during the mapping
+
+--
+
+* `F[G[A]] ~> G[F[A]]`
+
+---
+
+# Examples
+```scala
+import cats._, cats.implicits._
+
+def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
+```
+
+--
+
+```scala
+scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+res13: List[Int] = List(2, 1, 30, 26)
+
+scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+res14: List[Int] = List(7, 18, 25, 7)
+```
+
+```scala
+scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+res15: Option[Int] = Some(2)
+
+scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+res16: Option[Int] = Some(3)
+
+scala> Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
+res17: Option[Int] = None
+```
+
+???
+I'm using Future as an 'effect container' here. I would generally use something like IO, ZIO
+
+Discuss that we are flipping the M inside out and then dereferencing which strips away the outer Future
+Note that I am using the cats helpers
+
+# Why Is This Useful?
+
+--
+
+* Being able to switch betweeen 'container types' is cute, but seldom useful in practice (in ~10 years, I've found it useful once)
+
+--
+
+* Writing polymorphic code means that you know less about the types that are involved. 
+
+--
+
+* The less you know about the types, the fewer ways there are to write an implementation
+
+--
+
+* The fewer ways there are to write an implementation the harder it is to get it wrong
+
+--
+
+# Lets See an Example
+
+```scala
+import cats._
+import cats.data._
+import cats.implicits._
+
+def max[F[_]: Reducible, A: Order](fa: F[A]): A = 
+  Reducible[F].reduceLeft(fa)((x, y) => if (Order[A].gt(x, y)) x else y)
+```
+
+---
+
+# Compared To
+
+```
+def max(list: List[Int]): Int = 
+  list.sort.head
+
+```
+
+--
+
+* head is not the max of a sorted list
+
+--
+
+* crashes on empty list
+
+---
+
+# Why Is This Useful - Pt. 2
+
+--
+
+* Typeclasses (and especially those from cats, scalaz, spire...) express well studied abstractions and compose in well defined ways
+
+--
+
+* Using them can save on tremendous amounts of code
+
+ </textarea>
+    <script src="remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+</html>
