@@ -40,7 +40,7 @@ Ryan Zeigler
 
 --
 
-* a contract for a type just like an interface
+* a contract for a type similar to an interface
 
 --
 
@@ -156,7 +156,7 @@ IMO this is easier to think about
 
 ---
 
-# Why Would We Want This - Interlude?
+# Why Would We Want This - Semigroup?
 
 --
 
@@ -306,6 +306,10 @@ res3: Option[Int] = Some(6)
 
 --
 
+* [kittens](https://github.com/typelevel/kittens) - can derive a number of typeclasses for cats
+
+--
+
 * [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations; provides things similar to Ordering and Numeric
 
 --
@@ -338,6 +342,54 @@ import cats.implicits._
 
 ---
 
+# Eq
+
+--
+
+* Compare two objects for equality in a typesafe manner
+
+--
+
+* cats defines syntax that lets you use `===` (just like in JS) and won't compile unless both types are the same
+
+--
+
+* `Eq[T].eqv(t1, t2)` can also be used
+
+--
+
+* Equality for collection types can be derived if their elements can be compared for equality
+
+--
+
+* Bypasses the fact everything has a `.equals` by default which may not make sense 
+
+--
+
+* You don't have to worry about accidentally comparing futures for equality
+
+---
+
+# Show
+
+--
+
+* Convert an object into a string representation
+
+--
+
+* Provides syntax t.show to perform the conversion
+
+--
+
+* Provides an interpolator `show` like the builtin but only for objects with show instances
+
+--
+
+* Bypasses everything having a `.toString` by default which renders useless information
+
+---
+
 # Functor
 
 --
@@ -364,7 +416,7 @@ Make sure to discuss syntax
 Also, make sure to talk about how extremely general so much of this is
 
 ---
-Laws
+# Functor Laws
 
 * Mapping with identity must be the same as applying identity
 
@@ -388,10 +440,10 @@ def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit =
 
 ```scala
 scala> val strLen = (s: String) => s.length
-strLen: String => Int = $$Lambda$4325/1378203294@5e477e9
+strLen: String => Int = $$Lambda$5899/115481011@e517a6e
 
 scala> val strLenX4 = strLen.fmap(_ * 4)
-strLenX4: String => Int = scala.Function1$$Lambda$4330/51215527@2a3f42e2
+strLenX4: String => Int = scala.Function1$$Lambda$4333/1919257832@5183d941
 
 scala> strLenX4("abc")
 res3: Int = 12
@@ -406,7 +458,7 @@ import io.circe.parser.decode
 
 ```scala
 scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
-reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@8aee9ee
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@7de08930
 
 scala> decode[String]("24")(reverseString)
 res4: Either[io.circe.Error,String] = Right(42)
@@ -516,13 +568,13 @@ scala> // The maximum of each in the cross product of left and right
 res9: List[Byte] = List(1, 9, -5, 9)
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res10: Double = 0.8490200037434813
+res10: Double = 0.8236876786370431
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res11: Double = 0.3538943224568719
+res11: Double = 0.07963618293454378
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res12: Double = 0.759531191170261
+res12: Double = 0.8365803328209139
 ```
 
 ---
@@ -558,10 +610,10 @@ def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
 
 ```scala
 scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
-res13: List[Int] = List(2, 1, 30, 26)
+res13: List[Int] = List(7, 18, 5, 32)
 
 scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
-res14: List[Int] = List(7, 18, 25, 7)
+res14: List[Int] = List(5, 9, 17, 43)
 ```
 
 ```scala
@@ -569,7 +621,7 @@ scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
 res15: Option[Int] = Some(2)
 
 scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
-res16: Option[Int] = Some(3)
+res16: Option[Int] = Some(0)
 
 scala> Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
 res17: Option[Int] = None
@@ -580,6 +632,8 @@ I'm using Future as an 'effect container' here. I would generally use something 
 
 Discuss that we are flipping the M inside out and then dereferencing which strips away the outer Future
 Note that I am using the cats helpers
+
+---
 
 # Why Is This Useful?
 
@@ -599,7 +653,7 @@ Note that I am using the cats helpers
 
 * The fewer ways there are to write an implementation the harder it is to get it wrong
 
---
+---
 
 # Lets See an Example
 

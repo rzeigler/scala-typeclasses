@@ -156,7 +156,7 @@ IMO this is easier to think about
 
 ---
 
-# Why Would We Want This - Interlude?
+# Why Would We Want This - Semigroup?
 
 --
 
@@ -304,6 +304,10 @@ sum(List(Some(1), Some(2), None, Some(3)))
 
 --
 
+* [kittens](https://github.com/typelevel/kittens) - can derive a number of typeclasses for cats
+
+--
+
 * [spire](https://github.com/typelevel/spire) - also typelevel; types and typeclasses for numeric operations; provides things similar to Ordering and Numeric
 
 --
@@ -336,6 +340,54 @@ import cats.implicits._
 
 ---
 
+# Eq
+
+--
+
+* Compare two objects for equality in a typesafe manner
+
+--
+
+* cats defines syntax that lets you use `===` (just like in JS) and won't compile unless both types are the same
+
+--
+
+* `Eq[T].eqv(t1, t2)` can also be used
+
+--
+
+* Equality for collection types can be derived if their elements can be compared for equality
+
+--
+
+* Bypasses the fact everything has a `.equals` by default which may not make sense 
+
+--
+
+* You don't have to worry about accidentally comparing futures for equality
+
+---
+
+# Show
+
+--
+
+* Convert an object into a string representation
+
+--
+
+* Provides syntax t.show to perform the conversion
+
+--
+
+* Provides an interpolator `show` like the builtin but only for objects with show instances
+
+--
+
+* Bypasses everything having a `.toString` by default which renders useless information
+
+---
+
 # Functor
 
 --
@@ -357,7 +409,7 @@ Make sure to discuss syntax
 Also, make sure to talk about how extremely general so much of this is
 
 ---
-Laws
+# Functor Laws
 
 * Mapping with identity must be the same as applying identity
 
@@ -550,6 +602,8 @@ I'm using Future as an 'effect container' here. I would generally use something 
 Discuss that we are flipping the M inside out and then dereferencing which strips away the outer Future
 Note that I am using the cats helpers
 
+---
+
 # Why Is This Useful?
 
 --
@@ -568,7 +622,7 @@ Note that I am using the cats helpers
 
 * The fewer ways there are to write an implementation the harder it is to get it wrong
 
---
+---
 
 # Lets See an Example
 
@@ -585,7 +639,7 @@ def max[F[_]: Reducible, A: Order](fa: F[A]): A =
 
 # Compared To
 
-```
+```tut:silent
 def max(list: List[Int]): Int = 
   list.sort.head
 
@@ -610,6 +664,14 @@ def max(list: List[Int]): Int =
 --
 
 * Using them can save on tremendous amounts of code
+
+--
+
+* Because scala's type system is powerful enough to encode higher kinds we can reduce the amount of code we have to write
+
+--
+
+In particular, different combinations of Traverse and Applicative are useful in different contexts but there is a single implementation that drives all of them
 
  </textarea>
     <script src="remark-latest.min.js">
