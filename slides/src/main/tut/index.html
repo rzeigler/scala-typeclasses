@@ -28,6 +28,18 @@ Ryan Zeigler
 
 ---
 
+# Bio
+
+* Architect at [S5 Stratos](https://www.s5stratos.com/)
+
+* Scala user for 8 years
+
+* Function programmer for 7 years
+
+* These slides are at [https://rzeigler.github.io/scala-typeclasses/#1](https://rzeigler.github.io/scala-typeclasses/#1)
+
+---
+
 # What Is A Typeclass?
 
 --
@@ -635,14 +647,20 @@ def max[F[_]: Reducible, A: Order](fa: F[A]): A =
   Reducible[F].reduceLeft(fa)((x, y) => if (Order[A].gt(x, y)) x else y)
 ```
 
+--
+
+* Reducible requires that operation can happen without a seed value
+
+--
+
+* Order requires that we can order elements
+
 ---
 
 # Compared To
 
 ```tut:silent
-def max(list: List[Int]): Int = 
-  list.sort.head
-
+def max(list: List[Int]): Int = list.sorted.head
 ```
 
 --
@@ -652,6 +670,10 @@ def max(list: List[Int]): Int =
 --
 
 * crashes on empty list
+
+--
+
+* slow (O(n log n) v O(n))
 
 ---
 
@@ -674,6 +696,8 @@ def max(list: List[Int]): Int =
 * In particular, different combinations of Traverse and Applicative are useful in different contexts but there is a single implementation that drives all of them
 
 --
+
+* Questions?
 
  </textarea>
     <script src="remark-latest.min.js">

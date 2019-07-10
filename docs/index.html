@@ -28,6 +28,18 @@ Ryan Zeigler
 
 ---
 
+# Bio
+
+* Architect at [S5 Stratos](https://www.s5stratos.com/)
+
+* Scala user for 8 years
+
+* Function programmer for 7 years
+
+* These slides are at [https://rzeigler.github.io/scala-typeclasses/#1](https://rzeigler.github.io/scala-typeclasses/#1)
+
+---
+
 # What Is A Typeclass?
 
 --
@@ -440,10 +452,10 @@ def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit =
 
 ```scala
 scala> val strLen = (s: String) => s.length
-strLen: String => Int = $$Lambda$5899/115481011@e517a6e
+strLen: String => Int = $$Lambda$4277/2064325106@6a94f248
 
 scala> val strLenX4 = strLen.fmap(_ * 4)
-strLenX4: String => Int = scala.Function1$$Lambda$4333/1919257832@5183d941
+strLenX4: String => Int = scala.Function1$$Lambda$4282/847418072@8ab8116
 
 scala> strLenX4("abc")
 res3: Int = 12
@@ -458,7 +470,7 @@ import io.circe.parser.decode
 
 ```scala
 scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
-reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@7de08930
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@703ef615
 
 scala> decode[String]("24")(reverseString)
 res4: Either[io.circe.Error,String] = Right(42)
@@ -568,13 +580,13 @@ scala> // The maximum of each in the cross product of left and right
 res9: List[Byte] = List(1, 9, -5, 9)
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res10: Double = 0.8236876786370431
+res10: Double = 0.7858582914402578
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res11: Double = 0.07963618293454378
+res11: Double = 0.20307448641770898
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res12: Double = 0.8365803328209139
+res12: Double = 0.6453516410096405
 ```
 
 ---
@@ -610,18 +622,18 @@ def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
 
 ```scala
 scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
-res13: List[Int] = List(7, 18, 5, 32)
+res13: List[Int] = List(3, 2, 29, 40)
 
 scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
-res14: List[Int] = List(5, 9, 17, 43)
+res14: List[Int] = List(4, 13, 4, 30)
 ```
 
 ```scala
 scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
-res15: Option[Int] = Some(2)
+res15: Option[Int] = Some(6)
 
 scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
-res16: Option[Int] = Some(0)
+res16: Option[Int] = Some(5)
 
 scala> Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
 res17: Option[Int] = None
@@ -666,14 +678,20 @@ def max[F[_]: Reducible, A: Order](fa: F[A]): A =
   Reducible[F].reduceLeft(fa)((x, y) => if (Order[A].gt(x, y)) x else y)
 ```
 
+--
+
+* Reducible requires that operation can happen without a seed value
+
+--
+
+* Order requires that we can order elements
+
 ---
 
 # Compared To
 
-```
-def max(list: List[Int]): Int = 
-  list.sort.head
-
+```scala
+def max(list: List[Int]): Int = list.sorted.head
 ```
 
 --
@@ -683,6 +701,10 @@ def max(list: List[Int]): Int =
 --
 
 * crashes on empty list
+
+--
+
+* slow (O(n log n) v O(n))
 
 ---
 
@@ -695,6 +717,18 @@ def max(list: List[Int]): Int =
 --
 
 * Using them can save on tremendous amounts of code
+
+--
+
+* Because scala's type system is powerful enough to encode higher kinds we can reduce the amount of code we have to write
+
+--
+
+* In particular, different combinations of Traverse and Applicative are useful in different contexts but there is a single implementation that drives all of them
+
+--
+
+* Questions?
 
  </textarea>
     <script src="remark-latest.min.js">
