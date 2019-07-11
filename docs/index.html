@@ -112,6 +112,38 @@ Read this as Given an `Ordering[A]` I can produce a sorted `List[A]`
 
 ---
 
+# Implicit Search and Global Coherence
+
+--
+
+* Implicit search in scala is based around imports (I couldn't give you the full resolution algorithm without looking it up)
+
+--
+
+* When searching for an instance check the companion object for that type as well as any imported scopes
+
+--
+
+* When searching for an instance for a type parameter search the local scope
+
+--
+
+* Instances are should be globally coherent (at most 1 per typeclass/type pair)
+
+--
+
+* You may be tempted to try and provide multiple instances (the numeric types can form Monoids under addition and multiplication)
+
+--
+
+* Don't do it. Somewhere down the line you will encounter implicit resolution issues.
+
+--
+
+* Use AnyVal wrappers instead. 
+
+---
+
 # Why Would We Want This?
 
 
@@ -138,6 +170,18 @@ See the ordering example for sort above
 --
 
 * In Java, Collections just has a bunch of random methods
+
+--
+
+* Contrast with the previous example. Lists are sortable when their elements can be ordered:
+
+```scala
+class List[A] {
+  // ...
+  def sorted(implicit ev: Ordering[A]): List[A]
+  // ...
+}
+```
 
 ???
 IMO this is easier to think about
@@ -452,10 +496,10 @@ def composition[F[_]: Functor, A, B, C](fa: F[A], f: A => B, g: B => C): Unit =
 
 ```scala
 scala> val strLen = (s: String) => s.length
-strLen: String => Int = $$Lambda$4277/2064325106@6a94f248
+strLen: String => Int = $$Lambda$4269/1103245815@b35c49c
 
 scala> val strLenX4 = strLen.fmap(_ * 4)
-strLenX4: String => Int = scala.Function1$$Lambda$4282/847418072@8ab8116
+strLenX4: String => Int = scala.Function1$$Lambda$4274/1689193769@33635f52
 
 scala> strLenX4("abc")
 res3: Int = 12
@@ -470,7 +514,7 @@ import io.circe.parser.decode
 
 ```scala
 scala> implicit val reverseString = Decoder[Int].map(_.toString.reverse)
-reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@703ef615
+reverseString: io.circe.Decoder[String] = io.circe.Decoder$$anon$21@744b2d5
 
 scala> decode[String]("24")(reverseString)
 res4: Either[io.circe.Error,String] = Right(42)
@@ -580,14 +624,19 @@ scala> // The maximum of each in the cross product of left and right
 res9: List[Byte] = List(1, 9, -5, 9)
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res10: Double = 0.7858582914402578
+res10: Double = 0.9920831013038266
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res11: Double = 0.20307448641770898
+res11: Double = 0.4972743024116735
 
 scala> Await.result(maxM[Future, Double](random, random), Duration.Inf)
-res12: Double = 0.6453516410096405
+res12: Double = 0.9845521287258312
 ```
+
+???
+
+Future is only a monad under very specific circumstances and it isn't referentially transparent.
+Prefer something like IO, Monix, or ZIO
 
 ---
 
@@ -615,28 +664,29 @@ res12: Double = 0.6453516410096405
 ```scala
 import cats._, cats.implicits._
 
-def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
+def sleepFor(n: Int): Future[Int] = Future { 
+  val i = scala.util.Random.nextInt(n) 
+  Thread.sleep(i)
+  i
+}
 ```
 
 --
 
 ```scala
-scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
-res13: List[Int] = List(3, 2, 29, 40)
+scala> Await.result(List(10, 30, 40, 50).traverse(sleepFor), Duration.Inf)
+res13: List[Int] = List(0, 22, 5, 28)
 
-scala> Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
-res14: List[Int] = List(4, 13, 4, 30)
+scala> Await.result(List(10, 30, 40, 50).traverse(sleepFor), Duration.Inf)
+res14: List[Int] = List(9, 2, 32, 38)
 ```
 
 ```scala
-scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
-res15: Option[Int] = Some(6)
+scala> Await.result(10.some.traverse(sleepFor), Duration.Inf)
+res15: Option[Int] = Some(0)
 
-scala> Await.result(10.some.traverse(randomWithMax), Duration.Inf)
-res16: Option[Int] = Some(5)
-
-scala> Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
-res17: Option[Int] = None
+scala> Await.result(none[Int].traverse(sleepFor), Duration.Inf)
+res16: Option[Int] = None
 ```
 
 ???

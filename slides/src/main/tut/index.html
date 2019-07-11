@@ -112,6 +112,38 @@ Read this as Given an `Ordering[A]` I can produce a sorted `List[A]`
 
 ---
 
+# Implicit Search and Global Coherence
+
+--
+
+* Implicit search in scala is based around imports (I couldn't give you the full resolution algorithm without looking it up)
+
+--
+
+* When searching for an instance check the companion object for that type as well as any imported scopes
+
+--
+
+* When searching for an instance for a type parameter search the local scope
+
+--
+
+* Instances are should be globally coherent (at most 1 per typeclass/type pair)
+
+--
+
+* You may be tempted to try and provide multiple instances (the numeric types can form Monoids under addition and multiplication)
+
+--
+
+* Don't do it. Somewhere down the line you will encounter implicit resolution issues.
+
+--
+
+* Use AnyVal wrappers instead. 
+
+---
+
 # Why Would We Want This?
 
 
@@ -138,6 +170,18 @@ See the ordering example for sort above
 --
 
 * In Java, Collections just has a bunch of random methods
+
+--
+
+* Contrast with the previous example. Lists are sortable when their elements can be ordered:
+
+```scala
+class List[A] {
+  // ...
+  def sorted(implicit ev: Ordering[A]): List[A]
+  // ...
+}
+```
 
 ???
 IMO this is easier to think about
@@ -563,6 +607,11 @@ Await.result(maxM[Future, Double](random, random), Duration.Inf)
 Await.result(maxM[Future, Double](random, random), Duration.Inf)
 ```
 
+???
+
+Future is only a monad under very specific circumstances and it isn't referentially transparent.
+Prefer something like IO, Monix, or ZIO
+
 ---
 
 # Traverse
@@ -589,23 +638,25 @@ Await.result(maxM[Future, Double](random, random), Duration.Inf)
 ```tut:silent
 import cats._, cats.implicits._
 
-def randomWithMax(n: Int): Future[Int] = Future { scala.util.Random.nextInt(n) }
+def sleepFor(n: Int): Future[Int] = Future { 
+  val i = scala.util.Random.nextInt(n) 
+  Thread.sleep(i)
+  i
+}
 ```
 
 --
 
 ```tut
-Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+Await.result(List(10, 30, 40, 50).traverse(sleepFor), Duration.Inf)
 
-Await.result(List(10, 30, 40, 50).traverse(randomWithMax), Duration.Inf)
+Await.result(List(10, 30, 40, 50).traverse(sleepFor), Duration.Inf)
 ```
 
 ```tut
-Await.result(10.some.traverse(randomWithMax), Duration.Inf)
+Await.result(10.some.traverse(sleepFor), Duration.Inf)
 
-Await.result(10.some.traverse(randomWithMax), Duration.Inf)
-
-Await.result(none[Int].traverse(randomWithMax), Duration.Inf)
+Await.result(none[Int].traverse(sleepFor), Duration.Inf)
 ```
 
 ???
